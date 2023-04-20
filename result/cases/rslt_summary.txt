@@ -1,0 +1,10 @@
+AdaBoostRegressor_6_4 309845 
+91 
+AdaBoostRegressor_6_2 333010 
+RandomForestRegressor_6_2 105787 
+RandomForestRegressor_6_1 92536 
+DecisionTreeRegressor_6_1 100607 
+DecisionTreeRegressor_6_2 136133 
+DecisionTreeRegressor_6_3 143703 
+RandomForestRegressor_6_3 1491 
+RandomForestRegressor_6_3 1491 
