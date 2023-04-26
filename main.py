@@ -174,7 +174,52 @@ def run_sim_range(start_day,end_day):
         day_range = range(start_day,end_day,7)
         executor.map(run_sim,day_range)
 
-def preprocess_without_clustering(df_list,type,add_shapelet=False,normpop=False):
+# def preprocess_without_clustering(df_list,type,add_shapelet=False,normpop=False,median_first=True):
+#     def _preprocess(weeks):
+#         train_set = []
+#         for week in weeks:
+#             curr_df = df_list[week]
+#             if len(curr_df) == 0:
+#                 warnings.warn(f"No data for week {week}")
+#                 continue
+#             curr_df = curr_df.set_index('State').drop(['model'],axis=1)
+#             curr_df_copy = curr_df.copy()
+#             ground_truth_wk = int(curr_df.columns[0])
+#             ground_truth = get_4weeks_ahead_ground_truth(ground_truth_wk,type,shapelet=False)
+#             if normpop:
+#                 pop_df = pd.read_csv(state_pop_file).set_index('State')
+#                 for i in range(curr_df.shape[0]):
+#                     curr_df.iloc[i] = curr_df.iloc[i]/pop_df.loc[curr_df.iloc[i].name].values[0] * 100000
+#                 for i in range(ground_truth.shape[0]):
+#                     ground_truth.iloc[i] = ground_truth.iloc[i]/pop_df.loc[curr_df.iloc[i].name].values[0] * 100000
+#             if add_shapelet:
+#                 shape_values = pd.DataFrame(curr_df_copy.apply(
+#                     lambda row: shapelet_representation(np.array(row.values), m_0 = get_threshold(row.name,type)),
+#                     axis=1).to_list()).values
+#                 grouped_median_shapes = pd.DataFrame(columns=curr_df_copy.columns,index=curr_df_copy.index,data=shape_values)
+#                 curr_train_set = pd.concat([curr_df,grouped_median_shapes],axis=1)
+#                 if median_first:
+#                     curr_train_set = curr_train_set.groupby(level=0).median()
+#                 curr_train_set = curr_train_set.join(ground_truth,rsuffix='_true')
+#             else:
+#                 curr_train_set = curr_df.join(ground_truth,rsuffix='_true')
+#
+#             curr_train_set.columns = range(len(curr_train_set.columns))
+#             train_set.append(curr_train_set)
+#         return pd.concat(train_set).dropna()
+#
+#     weeks = sorted(list(df_list.keys()))
+#     test_weeks = [weeks.pop(-1)]
+#     train_weeks = weeks
+#     train_set = _preprocess(train_weeks)
+#     test_set = _preprocess(test_weeks)
+#     X_train = train_set.iloc[:,:-4]
+#     y_train = train_set.iloc[:,-4:]
+#     X_test = test_set.iloc[:,:-4]
+#     y_test = test_set.iloc[:,-4:]
+#     return X_train,X_test,y_train,y_test
+
+def preprocess_without_clustering(df_list, type, add_shapelet=False, normpop=False, median_first=True):
     def _preprocess(weeks):
         train_set = []
         for week in weeks:
@@ -182,27 +227,37 @@ def preprocess_without_clustering(df_list,type,add_shapelet=False,normpop=False)
             if len(curr_df) == 0:
                 warnings.warn(f"No data for week {week}")
                 continue
-            curr_df = curr_df.set_index('State').drop(['model'],axis=1)
-            curr_df_copy = curr_df.copy()
+
+            curr_df = curr_df.set_index('State').drop(['model'], axis=1)
             ground_truth_wk = int(curr_df.columns[0])
-            ground_truth = get_4weeks_ahead_ground_truth(ground_truth_wk,type,shapelet=False)
+            ground_truth = get_4weeks_ahead_ground_truth(ground_truth_wk, type, shapelet=False)
+
             if normpop:
                 pop_df = pd.read_csv(state_pop_file).set_index('State')
-                for i in range(curr_df.shape[0]):
-                    curr_df.iloc[i] = curr_df.iloc[i]/pop_df.loc[curr_df.iloc[i].name].values[0] * 100000
-                for i in range(ground_truth.shape[0]):
-                    ground_truth.iloc[i] = ground_truth.iloc[i]/pop_df.loc[curr_df.iloc[i].name].values[0] * 100000
+                norm_factors_curr_df = pop_df.loc[curr_df.index].values.flatten()
+                norm_factors_ground_truth = pop_df.loc[ground_truth.index].values.flatten()
+                curr_df = curr_df.div(norm_factors_curr_df, axis=0) * 100000
+                ground_truth = ground_truth.div(norm_factors_ground_truth, axis=0) * 100000
+
             if add_shapelet:
-                shape_values = pd.DataFrame(curr_df_copy.apply(
-                    lambda row: shapelet_representation(np.array(row.values), m_0 = get_threshold(row.name,type)),
-                    axis=1).to_list()).values
-                grouped_median_shapes = pd.DataFrame(columns=curr_df_copy.columns,index=curr_df_copy.index,data=shape_values)
-                curr_train_set = pd.concat([curr_df,grouped_median_shapes],axis=1).join(ground_truth,rsuffix='_true')
+                shape_values = curr_df.apply(
+                    lambda row: shapelet_representation(np.array(row.values), m_0=get_threshold(row.name, type)),
+                    axis=1).to_list()
+                grouped_median_shapes = pd.DataFrame(columns=curr_df.columns, index=curr_df.index, data=shape_values)
+                curr_train_set = pd.concat([curr_df, grouped_median_shapes], axis=1)
             else:
-                curr_train_set = curr_df.join(ground_truth,rsuffix='_true')
+                curr_train_set = curr_df.copy()
+
+            if median_first:
+                curr_train_set = curr_train_set.groupby(level=0).median()
+                curr_train_set = curr_train_set.join(ground_truth, rsuffix='_true')
+
+            else:
+                curr_train_set = curr_df.join(ground_truth, rsuffix='_true')
 
             curr_train_set.columns = range(len(curr_train_set.columns))
             train_set.append(curr_train_set)
+
         return pd.concat(train_set).dropna()
 
     weeks = sorted(list(df_list.keys()))
@@ -210,24 +265,21 @@ def preprocess_without_clustering(df_list,type,add_shapelet=False,normpop=False)
     train_weeks = weeks
     train_set = _preprocess(train_weeks)
     test_set = _preprocess(test_weeks)
-    X_train = train_set.iloc[:,:-4]
-    y_train = train_set.iloc[:,-4:]
-    X_test = test_set.iloc[:,:-4]
-    y_test = test_set.iloc[:,-4:]
-    # if normalize_y and not shapelet:
-    #     y_train = y_train.apply(lambda row:normalize(row), axis=1)
-    #     y_test = y_test.apply(lambda row:normalize(row), axis=1)
-    return X_train,X_test,y_train,y_test
+    X_train = train_set.iloc[:, :-4]
+    y_train = train_set.iloc[:, -4:]
+    X_test = test_set.iloc[:, :-4]
+    y_test = test_set.iloc[:, -4:]
+    return X_train, X_test, y_train, y_test
 
-
-def generate_quantile_prediction(start_day, end_day, type, add_shapelet=False,normpop=False):
-    partial_func = functools.partial(generate_quantile_prediction_day, type=type, add_shapelet=add_shapelet,normpop=normpop)
+def generate_quantile_prediction(start_day, end_day, type, add_shapelet=False,normpop=False,median_first=True):
+    partial_func = functools.partial(generate_quantile_prediction_day, type=type, add_shapelet=add_shapelet,
+                                     normpop=normpop,median_first=median_first)
     day_range = range(start_day, end_day, 7)
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
         executor.map(partial_func, day_range)
 
-def generate_quantile_prediction_day(day,type,add_shapelet,normpop=False,tree_depth=None):
+def generate_quantile_prediction_day(day,type,add_shapelet,normpop=False,tree_depth=None,median_first=True):
     model_name = "RandomForestQuantileRegressor"
     if tree_depth is not None:
         model_name += f'Depth={tree_depth}'
@@ -246,9 +298,9 @@ def generate_quantile_prediction_day(day,type,add_shapelet,normpop=False,tree_de
         y_train_curr = y_train_all.iloc[:, i]
         qclf_curr = RandomForestQuantileRegressor(max_depth=tree_depth).fit(X_train, y_train_curr)
         y_pred_curr = qclf_curr.predict(X_test, quantiles=target_quantiles)
-        curr_rslt = pd.DataFrame(y_pred_curr, index=y_test_all.index, columns=target_quantiles).reset_index().groupby(
-            'State').median()
-
+        curr_rslt = pd.DataFrame(y_pred_curr, index=y_test_all.index, columns=target_quantiles)
+        if not median_first:
+            curr_rslt = curr_rslt.groupby(level=0).median()
         if normpop:
             pop_df = pd.read_csv(state_pop_file).set_index('State')
             for j in range(curr_rslt.shape[0]):
@@ -263,21 +315,23 @@ def generate_quantile_prediction_day(day,type,add_shapelet,normpop=False,tree_de
 
 
 if __name__ == "__main__":
-    # print(get_all_model_predictions_week(164,'death'))
-    # generate_quantile_prediction_day(178,'death',add_shapelet=True,normpop=True)
+    # generate_quantile_prediction_day(192,type='case',normpop=True,add_shapelet=False,median_first=True)
+    # for normpop in [True,False]:
+    #     for add_shapelet in [True,False]:
+    #         for type in ['case','death']:
+    #             generate_quantile_prediction(178,1095,type,add_shapelet=add_shapelet,normpop=normpop,median_first=True)
+    # generate_quantile_prediction(178, 1095, 'case', add_shapelet=False, normpop=True, median_first=True)
+    # generate_quantile_prediction(178, 1095, 'death', add_shapelet=False, normpop=True, median_first=True)
+    #
+    metrics = ['WIS','MAE','Coverage']
+    for type in ['case','death']:
+        for metric in metrics:
+            plot_metric(type=type,metric=metric,savefig=True)
 
-    # generate_quantile_prediction(178,1095,'case',add_shapelet=True,normpop=True)
-    # generate_quantile_prediction(178,1095,'case',add_shapelet=False,normpop=True)
-    # generate_quantile_prediction(178,1095,'death',add_shapelet=True,normpop=True)
-    # generate_quantile_prediction(178,1095,'death',add_shapelet=False,normpop=True)
     # convert_forecasthub_to_median_format('Data/Raw','Data/Cleaned/State_Death','death')
     # convert_quantile_to_result_format('COVIDhub-trained_ensemble','result/Quantiles/death',type='death')
     # convert_quantile_to_result_format('USC-SI_kJalpha')
-    metrics = ['WIS','MAE','Coverage']
-    # for type in ['case','death']:
-    for metric in metrics:
-        plot_metric(type='death',metric=metric,savefig=True)
-    # generate_quantile_prediction_day(192)
+
     # generate_quantile_prediction(add_shapelet=False)
     # generate_quantile_prediction()
     # generate_quantile_prediction_day(day=192,add_shapelet=True)

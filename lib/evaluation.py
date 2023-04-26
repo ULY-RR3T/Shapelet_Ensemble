@@ -11,7 +11,7 @@ from datetime import datetime
 from datetime import timedelta
 import re
 sns.set()
-def plot_metric(type,metric='WIS',savefig=True):
+def plot_metric(type,metric='WIS',savefig=True,median_first=True):
     def sort_by_last_number(name):
         match = re.search(r'\d+$', name)
         if match:
@@ -24,7 +24,8 @@ def plot_metric(type,metric='WIS',savefig=True):
     # ref_models = ["COVIDhub-trained_ensemble","RandomForestQuantileRegressor","USC-SI_kJalpha"]
     # ref_models = ["COVIDhub-trained_ensemble", "RandomForestQuantileRegressor"]
     # ref_models = ["COVIDhub-trained_ensemble", "RandomForestQuantileRegressorDepth=5","RandomForestQuantileRegressor_shapelet"]
-    ref_models = ["COVIDhub-trained_ensemble","RandomForestQuantileRegressor_shapelet","RandomForestQuantileRegressorNormpop"]
+    # ref_models = ["COVIDhub-trained_ensemble","RandomForestQuantileRegressor_shapelet","RandomForestQuantileRegressorNormpop"]
+    ref_models = ["COVIDhub-trained_ensemble","RandomForestQuantileRegressorNormpop"]
     if type == 'case':
         source_dir = output_dir_case_quantile
     elif type == 'death':
@@ -87,16 +88,7 @@ def plot_metric(type,metric='WIS',savefig=True):
                 curr_rslt_ref_dicts[key] = curr_rslt_refs[key].to_dict('list')
                 for key2,value2 in curr_rslt_ref_dicts[key].items():
                     curr_rslt_ref_dicts[key][key2] = np.array(curr_rslt_ref_dicts[key][key2])
-            # q_left = [round(alpha/2,3) for alpha in all_quantiles]
-            # q_right = [:round(1-alpha/2,3) for alpha in all_quantiles]
-            # alpha_dict = {round(alpha/2,3):round(1-alpha/2,3) for alpha in all_quantiles}
-            # for i in np.arange(0,1,0.01):
-            #     try:
-            #         metric_eval_curr = weighted_interval_score(ground_truth.values, [], curr_rslt_eval_dict)[
-            #             0].mean()
-            #         print(i)
-            #     except:
-            #         continue
+
             if metric.upper() == 'WIS':
                 curr_alphas = [round(1-(all_quantiles[-i-1]-all_quantiles[i]),2) for i in range(len(all_quantiles)//2)]
                 metric_eval_curr = weighted_interval_score(ground_truth.values,curr_alphas,curr_rslt_eval_dict)[0].mean()
@@ -117,7 +109,7 @@ def plot_metric(type,metric='WIS',savefig=True):
                     metric_ref_curr = mean_absolute_error(np.array(ground_truth).flatten(), curr_rslt_ref_dict[0.5])
                 elif metric.lower() == 'coverage':
                     metric_ref_curr = 1 - outside_interval(np.array(ground_truth).flatten(),
-                                                           curr_rslt_ref_dict[0.1],curr_rslt_ref_dict[0.9]).mean()
+                                                           curr_rslt_ref_dict[0.25],curr_rslt_ref_dict[0.75]).mean()
 
                 WIS_refs[k][i].append(metric_ref_curr)
                 WIS_refs_containing_dates[k][i].append((target_day, metric_ref_curr))

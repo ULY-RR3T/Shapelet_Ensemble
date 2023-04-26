@@ -28,7 +28,6 @@ result_output_dir = 'result/cases'
 output_dir_case_quantile = 'result/Quantiles_Normpop/case'
 output_dir_death_quantile = 'result/Quantiles_Normpop/death'
 
-
 # Configuration for shapelet
 shapelet_array = np.zeros(shape=(4,4))
 shapelet_array[0] = [1,2,3,4] # inc
