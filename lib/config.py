@@ -30,11 +30,14 @@ output_dir_death_quantile = 'result/Quantiles_Normpop/death'
 
 # Configuration for shapelet
 shapelet_array = np.zeros(shape=(4,4))
-shapelet_array[0] = [1,2,3,4] # inc
+# shapelet_array[0] = [1,2,4,8] # inc
+# shapelet_array[0] = [1,2,3,4] # inc
+shapelet_array[0] = [8,4,2,1]
 shapelet_array[1] = [1,2,2,1] # peak
 shapelet_array[2] = [0,0,0,0] # flat
-shapelet_array[3] = [4,3,2,1] # dec
-shapelet_array_names = ['Inc','Peak','Flat','Dec']
+shapelet_array[3] = [1,2,4,8] # surge
+# shapelet_array_names = ['Inc','Peak','Flat','Surge']
+shapelet_array_names = ['Decline','Peak','Flat','Surge']
 Shapelet_length = 4
 
 # Configuration for lookback period

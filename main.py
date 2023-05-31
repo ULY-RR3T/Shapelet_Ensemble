@@ -8,6 +8,7 @@ from quantile_forest import RandomForestQuantileRegressor
 import warnings
 import concurrent.futures
 import functools
+import dtreeviz
 
 class InvalidStateException(Exception):
     "Raised when the input value is less than 18"
@@ -286,7 +287,7 @@ def generate_quantile_prediction_day(day,type,add_shapelet,normpop=False,tree_de
     if normpop:
         model_name += 'Normpop'
     if add_shapelet:
-        model_name += '_shapelet'
+        model_name += '_shapelet_abalation'
 
     print(f"Quantile prediction for day {day} started!")
     target_days = [int(day + 7 * i) for i in range(4)]
@@ -298,6 +299,12 @@ def generate_quantile_prediction_day(day,type,add_shapelet,normpop=False,tree_de
         y_train_curr = y_train_all.iloc[:, i]
         qclf_curr = RandomForestQuantileRegressor(max_depth=tree_depth).fit(X_train, y_train_curr)
         y_pred_curr = qclf_curr.predict(X_test, quantiles=target_quantiles)
+        # if i == 3:
+        #     feature_names = ['1 Week','2 Week','3 Week','4 Week'] + shapelet_array_names
+        #     viz = dtreeviz.model(qclf_curr.estimators_[0], X_train=X_train, y_train=y_train_curr,feature_names=feature_names)
+        #     v = viz.view(fancy=False)
+        #     v.show()
+        #     v.save("tree.svg")
         curr_rslt = pd.DataFrame(y_pred_curr, index=y_test_all.index, columns=target_quantiles)
         if not median_first:
             curr_rslt = curr_rslt.groupby(level=0).median()
@@ -315,21 +322,22 @@ def generate_quantile_prediction_day(day,type,add_shapelet,normpop=False,tree_de
 
 
 if __name__ == "__main__":
-    # generate_quantile_prediction_day(192,type='case',normpop=True,add_shapelet=False,median_first=True)
+    # generate_quantile_prediction_day(192,type='case',normpop=True,add_shapelet=True,median_first=True)
     # for normpop in [True,False]:
-    #     for add_shapelet in [True,False]:
-    #         for type in ['case','death']:
-    #             generate_quantile_prediction(178,1095,type,add_shapelet=add_shapelet,normpop=normpop,median_first=True)
+        # for add_shapelet in [True,False]:
+            # for type in ['case','death']:
+            #     generate_quantile_prediction(178,1095,type,add_shapelet=add_shapelet,normpop=normpop,median_first=True)
+    # generate_quantile_prediction(178,1095,'death',add_shapelet=True,normpop=True,median_first=True)
     # generate_quantile_prediction(178, 1095, 'case', add_shapelet=False, normpop=True, median_first=True)
-    # generate_quantile_prediction(178, 1095, 'death', add_shapelet=False, normpop=True, median_first=True)
-    #
-    metrics = ['WIS','MAE','Coverage']
-    for type in ['case','death']:
-        for metric in metrics:
-            plot_metric(type=type,metric=metric,savefig=True)
+    # generate_quantile_prediction(178, 1095, 'case', add_shapelet=True, normpop=True, median_first=True)
 
-    # convert_forecasthub_to_median_format('Data/Raw','Data/Cleaned/State_Death','death')
-    # convert_quantile_to_result_format('COVIDhub-trained_ensemble','result/Quantiles/death',type='death')
+    metrics = ['WIS','MAE','Coverage']
+    # for type in ['case','death']:
+    for metric in metrics:
+      plot_metric(type='case',metric=metric,savefig=False)
+
+    # convert_forecasthub_to_quantile_format('Data/Raw','Data/Cleaned/State_Case_Quantile','deaths')
+    # convert_quantile_to_result_format('COVIDhub_CDC-ensemble','result/Quantiles_Normpop/death',type='death')
     # convert_quantile_to_result_format('USC-SI_kJalpha')
 
     # generate_quantile_prediction(add_shapelet=False)
